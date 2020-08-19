@@ -1,0 +1,46 @@
+#!/bin/bash
+#-*- ENCODING: UTF-8 -*-
+
+#-------Colores-------
+greenColour="\e[0;32m\033[1m"
+endColour="\033[0m\e[0m"
+redColour="\e[0;31m\033[1m"
+blueColour="\e[0;34m\033[1m"
+yellowColour="\e[0;33m\033[1m"
+purpleColour="\e[0;35m\033[1m"
+turquoiseColour="\e[0;36m\033[1m"
+grayColour="\e[0;37m\033[1m"
+
+trap ctrl_c INT
+
+function ctrl_c() {
+    echo -e "\n\n${purpleColour}[+]${endColour} Saliendo...\n"
+    rm $1_crt.tmp 2>/dev/null
+    exit 0
+}
+
+barra="${grayColour}---------------------------------------------------${endColour}"
+
+echo -e "\n${purpleColour}*${endColour} Un momento ...\n"
+
+curl -s https://crt.sh/?q\=$1\&output\=json | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u >$1_crt.tmp 2>/dev/null
+
+echo -e "${yellowColour}*${endColour} Posibles resultados encontrados:\t" $(wc -l $1_crt.tmp | cut -d" " -f1)
+
+echo -e "\n"$barra
+echo -e "${purpleColour}[+]${endColour} Validando resultados ..."
+echo -e $barra
+
+for i in $(cat $1_crt.tmp); do
+    request=$(curl -Lsi $i | grep "HTTP/1." | cut -d" " -f2 | grep "200")
+    ip=$(dig +short $i 2>/dev/null | grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}")
+    if [ "$request" = "200" ]; then
+        echo -e "  [✔] ${yellowColour}--> ${endColour}"$i"\t${yellowColour}~${endColour}${grayColour}" $ip"$endColour"
+        echo -e $i "~" $ip >> $1_result.txt
+    fi
+done
+
+echo -e $barra"\n"
+echo -e "${purpleColour}[+]${endColour} Total resultados encontrados:\t" $(wc -l $1_result.txt | cut -d" " -f1)
+echo -e "${purpleColour}[+]${endColour} Resultados guardados en\t:\t" $(pwd)/$(wc -l $1_result.txt | cut -d" " -f2)"\n"
+rm -rf $1_crt.tmp
